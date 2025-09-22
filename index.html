@@ -6,376 +6,140 @@
 <title>ESP32 Ampel — BLE Control</title>
 <style>
   :root{
-    --bg1:#f0f4f8; --bg2:#ffffff;
-    --card:#ffffff; --muted:#666;
-    --accent:#0b7b7b;
+    --bg: #0f1724;
+    --card: #0f2130;
+    --muted: #9aa8b8;
+    --accent: #06b6d4;
+    --shadow: 0 8px 30px rgba(2,6,23,0.6);
   }
-  body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial; margin:0; background:linear-gradient(180deg,var(--bg1),var(--bg2)); color:#111;}
-  .wrap{max-width:720px;margin:18px auto;padding:18px;}
-  header{display:flex;align-items:center;justify-content:space-between;gap:12px}
-  header h1{font-size:20px;margin:0}
-  .btn{padding:10px 14px;border-radius:10px;border:none;cursor:pointer;background:var(--accent);color:#fff;font-weight:600;box-shadow:0 6px 18px rgba(11,123,123,0.12)}
-  .btn.secondary{background:#444}
-  .row{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}
-  .card{background:var(--card);border-radius:12px;padding:12px;box-shadow:0 8px 30px rgba(10,10,10,0.04);flex:1;min-width:220px}
-  .programs{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
-  .prog-btn{padding:10px;border-radius:10px;border:none;cursor:pointer;font-weight:600}
-  .prog-btn.active{outline:3px solid rgba(0,0,0,0.08);transform:translateY(-3px)}
-  .mode0{background:#0b7b7b;color:#fff}
-  .mode1{background:#7a2b7a;color:#fff}
-  .mode2{background:orange;color:#fff}
-  .mode3{background:#1f7a2f;color:#fff}
-  .stop{background:#444;color:#fff}
-  .controls{display:flex;flex-direction:column;align-items:center;gap:8px}
-  .speed-label{font-weight:700}
-  .slider{width:100%;max-width:420px}
-  .ampel{width:200px;margin:8px auto;padding:18px;background:#222;border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,0.18);display:flex;flex-direction:column;align-items:center}
-  .led{width:92px;height:92px;border-radius:50%;margin:8px 0;box-shadow:inset 0 -10px 28px rgba(0,0,0,0.6);transition:all 180ms ease;touch-action:manipulation;display:flex;align-items:center;justify-content:center}
-  .led.off{filter:grayscale(70%) brightness(35%);transform:scale(1);box-shadow:inset 0 -8px 20px rgba(0,0,0,0.6)}
-  .led.red{background:radial-gradient(circle at 30% 30%,#ff6b6b,#8b0000)}
-  .led.yellow{background:radial-gradient(circle at 30% 30%,#fff799,#b8860b)}
-  .led.green{background:radial-gradient(circle at 30% 30%,#9aff9a,#0b8b3d)}
-  .status{font-size:13px;color:var(--muted);text-align:center;margin-top:8px}
-  footer{margin-top:12px;text-align:center;color:var(--muted);font-size:13px}
-  /* responsive */
-  @media (max-width:520px){
-    .ampel{width:160px}
-    .led{width:70px;height:70px}
+  body{
+    margin:0;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto;
+    background: var(--bg);
+    color:#e6eef6;
+    padding:16px;
   }
+  .wrap{ max-width:980px; margin:0 auto; display:grid; grid-template-columns:1fr 360px; gap:20px;}
+  header{ grid-column:1/-1; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
+  .card{ background:var(--card); border-radius:14px; padding:18px; box-shadow:var(--shadow);}
+  .btn{padding:10px 14px; border-radius:10px; font-weight:700; cursor:pointer; border:none;}
+  .btn.primary{ background:#06b6d4; color:#042023;}
+  .btn.secondary{ background:#253544; color:var(--muted);}
+  .programs{ display:grid; gap:10px; grid-template-columns: repeat(2, 1fr); margin-top:12px;}
+  .prog-btn{padding:12px; border-radius:10px; font-weight:700; cursor:pointer; background:rgba(255,255,255,0.02);}
+  .prog-btn.active{outline:3px solid rgba(255,255,255,0.04);}
+  .ampel-box{ display:flex; flex-direction:column; align-items:center; padding:18px; border-radius:14px; background:var(--card);}
+  .ampel{ width:180px; background:#0b1117; padding:16px; border-radius:14px; display:flex; flex-direction:column; align-items:center;}
+  .lamp{ width:86px; height:86px; border-radius:50%; margin:10px 0; display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:0.55;}
+  .lamp.red{ background: radial-gradient(circle,#ff7b7b,#8b0000);}
+  .lamp.yellow{ background: radial-gradient(circle,#fff7a8,#b8860b);}
+  .lamp.green{ background: radial-gradient(circle,#b8ffb8,#0b8b3d);}
+  .lamp.on{ opacity:1; transform: scale(1.1);}
+  input[type=range]{ width:100%; height:10px; border-radius:999px; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <h1>ESP32 Ampel — BLE</h1>
-    <div>
-      <button id="connectBtn" class="btn">Verbinden (BLE)</button>
-      <button id="disconnectBtn" class="btn secondary" style="display:none">Trennen</button>
-    </div>
-  </header>
-
-  <div class="row" style="margin-top:12px">
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><strong>Programme</strong><div style="font-size:12px;color:var(--muted)">Wähle einen Modus</div></div>
-        <div id="connectedDot" style="width:12px;height:12px;border-radius:50%;background:#f0f0f0"></div>
-      </div>
-
-      <div style="margin-top:10px" class="programs" id="programBtns">
-        <button class="prog-btn mode0" data-mode="mode0">Modus 0: Fade</button>
-        <button class="prog-btn mode1" data-mode="blinken">Modus 1: Blinken</button>
-        <button class="prog-btn mode2" data-mode="lauflicht">Modus 2: Lauflicht</button>
-        <button class="prog-btn mode3" data-mode="mode3">Modus 3: PingPong</button>
-        <button class="prog-btn stop" data-mode="stop">Stop</button>
-      </div>
-
-      <div style="margin-top:10px" class="status">
-        Aktueller Modus: <span id="curMode">—</span> · Speed: <span id="curSpeed">200</span> ms
-      </div>
-    </div>
-
-    <div class="card controls">
-      <div class="speed-label">Geschwindigkeit (global)</div>
-      <input id="speedSlider" class="slider" type="range" min="50" max="1200" step="10" value="200">
-      <div style="display:flex;gap:8px;margin-top:6px">
-        <div style="font-size:12px;color:var(--muted)">Schnell</div>
-        <div style="flex:1"></div>
-        <div style="font-size:12px;color:var(--muted)">Langsam</div>
-      </div>
-
-      <div class="ampel" style="margin-top:10px">
-        <div id="v_led0" class="led red off" title="Rot (klicken zum toggeln)"></div>
-        <div id="v_led1" class="led yellow off" title="Gelb (klicken zum toggeln)"></div>
-        <div id="v_led2" class="led green off" title="Grün (klicken zum toggeln)"></div>
-      </div>
-      <div style="font-size:12px;color:var(--muted);margin-top:8px">Tippe die Lampen, um sie manuell zu schalten</div>
-    </div>
+<header>
+  <h1>ESP32 Ampel</h1>
+  <div>
+    <button id="btnConnect" class="btn primary">Verbinden</button>
+    <button id="btnDisconnect" class="btn secondary" style="display:none">Trennen</button>
   </div>
+</header>
 
-  <footer>Benutze Chrome (Desktop / Android). Seite über <code>localhost</code> oder HTTPS laden.</footer>
+<section class="card">
+  <strong>Programme</strong>
+  <div class="programs">
+    <button class="prog-btn" data-mode="lauflicht">Lauflicht</button>
+    <button class="prog-btn" data-mode="blinken">Blinken</button>
+    <button class="prog-btn" data-mode="fading">Fading</button>
+    <button class="prog-btn" data-mode="mode3">PingPong</button>
+    <button class="prog-btn" data-mode="mode0">Einzeln Fade</button>
+    <button class="prog-btn" data-mode="stop">Stop</button>
+  </div>
+  <div style="margin-top:12px;">
+    <label>Speed: <span id="uiSpeed">200</span> ms</label>
+    <input id="speed" type="range" min="50" max="1200" step="10" value="200">
+  </div>
+</section>
+
+<aside class="ampel-box">
+  <div class="ampel">
+    <div id="led0" class="lamp red" data-index="0"></div>
+    <div id="led1" class="lamp yellow" data-index="1"></div>
+    <div id="led2" class="lamp green" data-index="2"></div>
+  </div>
+  <div style="display:flex; gap:10px; margin-top:10px;">
+    <button id="btnAllOn" class="btn primary">Alle an</button>
+    <button id="btnAllOff" class="btn secondary">Alle aus</button>
+  </div>
+  <div style="margin-top:12px; color:var(--muted);" id="log"></div>
+</aside>
 </div>
 
 <script>
-/* === Konfiguration (UUIDs müssen mit deinem ESP32-Code übereinstimmen) === */
-const SERVICE_UUID = '12345678-1234-5678-1234-56789abcdef0';
-const MODE_UUID    = '12345678-1234-5678-1234-56789abcdef1';
-const SPEED_UUID   = '12345678-1234-5678-1234-56789abcdef2';
-const LED_UUID     = '12345678-1234-5678-1234-56789abcdef3';
+const SERVICE_UUID='12345678-1234-5678-1234-56789abcdef0';
+const MODE_UUID='12345678-1234-5678-1234-56789abcdef1';
+const SPEED_UUID='12345678-1234-5678-1234-56789abcdef2';
+const LED_UUID='12345678-1234-5678-1234-56789abcdef3';
 
-/* === UI Elemente === */
-const connectBtn = document.getElementById('connectBtn');
-const disconnectBtn = document.getElementById('disconnectBtn');
-const connectedDot = document.getElementById('connectedDot');
-const curModeSpan = document.getElementById('curMode');
-const curSpeedSpan = document.getElementById('curSpeed');
-const speedSlider = document.getElementById('speedSlider');
-const programBtns = document.getElementById('programBtns');
-const leds = [document.getElementById('v_led0'), document.getElementById('v_led1'), document.getElementById('v_led2')];
+let device=null, server=null, service=null, modeChar=null, speedChar=null, ledChar=null;
+let ledStates=[0,0,0];
+let modeLocal='', speedLocal=parseInt(document.getElementById('speed').value);
 
-/* === BLE Variables === */
-let device = null;
-let server = null;
-let svc = null;
-let modeChar = null;
-let speedChar = null;
-let ledChar = null;
+const leds=[document.getElementById('led0'), document.getElementById('led1'), document.getElementById('led2')];
 
-/* === Local UI state for animations === */
-let currentMode = '';
-let currentSpeed = parseInt(speedSlider.value);
-let blinkInterval = null;
-let sequenceInterval = null;
+function log(msg){ const e=document.getElementById('log'); e.innerHTML=`${new Date().toLocaleTimeString()} - ${msg}<br>`+e.innerHTML;}
 
-/* helpers */
-const encoder = new TextEncoder();
-const decoder = new TextDecoder();
-
-/* === Connect / Disconnect === */
-connectBtn.addEventListener('click', async () => {
-  try {
-    await connectBLE();
-  } catch (e) {
-    console.error(e);
-    alert('BLE connect fehlgeschlagen. Chrome + localhost/HTTPS erforderlich.');
-  }
-});
-
-disconnectBtn.addEventListener('click', async () => {
-  if (device && device.gatt.connected) {
-    device.gatt.disconnect();
-  }
-  resetConnectionUI();
-});
-
-/* connect BLE and get characteristics */
 async function connectBLE(){
-  // acceptAllDevices for simpler testing, restrict optionalServices to your UUID
-  device = await navigator.bluetooth.requestDevice({
-    acceptAllDevices: true,
-    optionalServices: [SERVICE_UUID]
-  });
-  if (!device) throw 'Kein Gerät gewählt';
-  device.addEventListener('gattserverdisconnected', onDisconnected);
-
-  server = await device.gatt.connect();
-  svc = await server.getPrimaryService(SERVICE_UUID);
-  modeChar  = await svc.getCharacteristic(MODE_UUID);
-  speedChar = await svc.getCharacteristic(SPEED_UUID);
-  ledChar   = await svc.getCharacteristic(LED_UUID);
-
-  // Try read initial mode/speed if device supports read
-  try {
-    const m = await modeChar.readValue();
-    const mText = decoder.decode(m);
-    if (mText) setModeLocal(mText);
-  } catch (e) { /* read not supported */ }
-  try {
-    const s = await speedChar.readValue();
-    const sText = decoder.decode(s);
-    if (sText) {
-      currentSpeed = parseInt(sText) || currentSpeed;
-      speedSlider.value = currentSpeed;
-      curSpeedSpan.innerText = currentSpeed;
-    }
-  } catch (e) { /* read not supported */ }
-
-  setConnectedUI(true);
-  startLocalAnimation(); // ensure UI reflects mode
-  console.log('BLE verbunden');
+  try{
+    device = await navigator.bluetooth.requestDevice({filters:[{services:[SERVICE_UUID]}], optionalServices:[SERVICE_UUID]});
+    device.addEventListener('gattserverdisconnected', ()=>{log('Disconnected');});
+    server = await device.gatt.connect();
+    service = await server.getPrimaryService(SERVICE_UUID);
+    modeChar = await service.getCharacteristic(MODE_UUID);
+    speedChar = await service.getCharacteristic(SPEED_UUID);
+    ledChar = await service.getCharacteristic(LED_UUID);
+    log('Verbunden mit '+device.name);
+  }catch(e){log('Fehler: '+e);}
 }
 
-/* disconnect handler */
-function onDisconnected(){
-  resetConnectionUI();
+function disconnectBLE(){ if(device && device.gatt.connected) device.gatt.disconnect(); log('Getrennt'); }
+
+function updateLedUI(){
+  leds.forEach((el,i)=>{ el.classList.toggle('on',ledStates[i]>0); });
 }
 
-/* reset UI */
-function resetConnectionUI(){
-  device = null; server = null; svc = null; modeChar = null; speedChar = null; ledChar = null;
-  setConnectedUI(false);
-  stopAllAnimations();
-  setModeLocal('');
-}
-
-/* UI connected state */
-function setConnectedUI(on){
-  connectedDot.style.background = on ? '#2ecc71' : '#eee';
-  connectBtn.style.display = on ? 'none' : '';
-  disconnectBtn.style.display = on ? '' : 'none';
-}
-
-/* === Program buttons === */
-programBtns.addEventListener('click', (ev) => {
-  const btn = ev.target.closest('button');
-  if(!btn) return;
-  const mode = btn.dataset.mode;
-  setMode(mode);
-});
-
-/* send mode via BLE and update UI */
-async function setMode(mode){
-  if (!modeChar) { setModeLocal(mode); return; }
-  try {
-    await modeChar.writeValue(encoder.encode(mode));
-    setModeLocal(mode);
-  } catch (e) {
-    console.error('setMode error', e);
-    alert('Fehler beim Senden des Modus');
-  }
-}
-
-/* set UI mode and start/stop animations locally */
-function setModeLocal(mode){
-  currentMode = mode;
-  curModeSpan.innerText = mode || '—';
-  // highlight active button
-  document.querySelectorAll('.prog-btn').forEach(b => b.classList.remove('active'));
-  if (mode){
-    const btnMap = {'mode0':'btn_mode0','blinken':'btn_mode1','lauflicht':'btn_mode2','mode3':'btn_mode3','fading':'btn_mode1','stop':'btn_stop'};
-    // find button by data-mode
-    document.querySelectorAll('.prog-btn').forEach(b=>{
-      if (b.dataset.mode === mode) b.classList.add('active');
-    });
-  }
-  startLocalAnimation();
-}
-
-/* === Speed slider === */
-speedSlider.addEventListener('input', async (e) => {
-  const val = parseInt(e.target.value);
-  curSpeedSpan.innerText = val;
-  currentSpeed = val;
-  if (!speedChar) return;
-  try {
-    await speedChar.writeValue(encoder.encode(String(val)));
-  } catch(e){
-    console.error('speed write error', e);
-  }
-});
-
-/* === LED toggles (UI + BLE) === */
-leds.forEach((el, idx) => {
-  el.addEventListener('click', async () => {
-    const isOff = el.classList.contains('off');
-    const duty = isOff ? 1023 : 0;
-    // optimistic UI
-    el.classList.toggle('off');
-    el.style.transform = 'scale(1.08)';
-    setTimeout(()=> el.style.transform = 'scale(1)', 120);
-
-    // send BLE write
-    if (!ledChar) return;
-    try {
-      await ledChar.writeValue(encoder.encode(`${idx}:${duty}`));
-      // stop mode locally (manual override)
-      setModeLocal(''); // no mode active
-    } catch(e){
-      console.error('LED write error', e);
-    }
+document.querySelectorAll('.prog-btn').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    modeLocal=btn.dataset.mode;
+    if(modeChar){ try{ await modeChar.writeValue(new TextEncoder().encode(modeLocal)); log('Mode '+modeLocal+' gesendet'); }catch(e){log(e);} }
   });
 });
 
-/* === Local animations to reflect modes immediately === */
-function stopAllAnimations(){
-  if (blinkInterval) { clearInterval(blinkInterval); blinkInterval = null; }
-  if (sequenceInterval) { clearInterval(sequenceInterval); sequenceInterval = null; }
-  // reset LED visuals to off (if no manual state)
-  // we won't force them off here - leave to commands or manual toggles
-}
+leds.forEach((el,i)=>{ el.addEventListener('click', async ()=>{
+  ledStates[i]=ledStates[i]?0:1023; updateLedUI();
+  if(ledChar){ try{await ledChar.writeValue(new TextEncoder().encode(ledStates.map((v,j)=>j+':'+v).join(';')));}catch(e){log(e);} }
+});});
 
-/* animate according to currentMode using currentSpeed */
-function startLocalAnimation(){
-  stopAllAnimations();
-  // ensure LEDs visually reflect off state initially if mode empty
-  if (!currentMode || currentMode==='stop') return;
+document.getElementById('btnAllOff').addEventListener('click', async ()=>{
+  ledStates=[0,0,0]; updateLedUI();
+  if(ledChar){ try{await ledChar.writeValue(new TextEncoder().encode(ledStates.map((v,j)=>j+':'+v).join(';')));}catch(e){log(e);} }
+});
+document.getElementById('btnAllOn').addEventListener('click', async ()=>{
+  ledStates=[1023,1023,1023]; updateLedUI();
+  if(ledChar){ try{await ledChar.writeValue(new TextEncoder().encode(ledStates.map((v,j)=>j+':'+v).join(';')));}catch(e){log(e);} }
+});
 
-  if (currentMode === 'blinken' || currentMode === 'fading' && false){
-    // Blink: toggle all
-    blinkInterval = setInterval(() => {
-      const anyOn = leds.some(el => !el.classList.contains('off'));
-      leds.forEach(el => el.classList.toggle('off', anyOn)); // if any on -> turn off, else on
-    }, Math.max(80, currentSpeed));
-  } else if (currentMode === 'lauflicht'){
-    let idx = 0;
-    sequenceInterval = setInterval(() => {
-      leds.forEach((el,i)=> el.classList.toggle('off', i!==idx));
-      idx = (idx+1) % leds.length;
-    }, Math.max(60, currentSpeed));
-  } else if (currentMode === 'mode0'){
-    // sequential fade simulation: turn each on then off with transition
-    let i = 0;
-    sequenceInterval = setInterval(()=>{
-      // animate one led with pseudo-fade via scale and shadow
-      leds.forEach((el,j)=> el.classList.toggle('off', j!==i));
-      i = (i+1) % leds.length;
-    }, Math.max(40, Math.floor(currentSpeed/1.5)));
-  } else if (currentMode === 'mode3'){
-    // ping-pong
-    const order = [0,1,2,1];
-    let p = 0;
-    sequenceInterval = setInterval(()=>{
-      const idx = order[p % order.length];
-      leds.forEach((el,i)=> el.classList.toggle('off', i!==idx));
-      p++;
-    }, Math.max(60, currentSpeed));
-  } else if (currentMode === 'fading'){
-    // smoother fake fade: cycle brightness using CSS filter (approx)
-    let t = 0;
-    sequenceInterval = setInterval(()=>{
-      t = (t+1) % 360;
-      // compute which led should be brighter in turn
-      const phase = Math.floor((t / 360) * leds.length);
-      leds.forEach((el,i)=>{
-        if (i === phase) {
-          el.classList.remove('off');
-          el.style.opacity = 0.95;
-          el.style.transform = 'scale(1.08)';
-        } else {
-          el.classList.add('off');
-          el.style.opacity = 1;
-          el.style.transform = 'scale(1)';
-        }
-      });
-    }, Math.max(30, Math.round(currentSpeed/12)));
-  }
-}
+document.getElementById('btnConnect').addEventListener('click', connectBLE);
+document.getElementById('btnDisconnect').addEventListener('click', disconnectBLE);
 
-/* small helper to apply initial/off state */
-function setAllOffUI(){
-  leds.forEach(el=> {
-    el.classList.add('off');
-    el.style.opacity = 1;
-  });
-}
-
-/* on disconnect cleanup */
-function onDisconnected(){
-  resetConnection();
-}
-
-/* reset connection and UI */
-function resetConnection(){
-  device = null; server = null; svc = null; modeChar = null; speedChar = null; ledChar = null;
-  curModeSpan.innerText = '—';
-  setConnected(false);
-  stopAllAnimations();
-  setAllOffUI();
-  connectBtn.style.display = ''; disconnectBtn.style.display = 'none';
-}
-
-/* toggle connected indicator */
-function setConnected(on){
-  connectedDot.style.background = on ? '#2ecc71' : '#eee';
-  connectBtn.style.display = on ? 'none' : '';
-  disconnectBtn.style.display = on ? '' : 'none';
-}
-
-/* make connectBLE available on global for debugging */
-window.connectBLE = connectBLE;
-
-/* initialize UI */
-setAllOffUI();
-curSpeedSpan.innerText = currentSpeed;
+document.getElementById('speed').addEventListener('input', async (ev)=>{
+  speedLocal=parseInt(ev.target.value);
+  document.getElementById('uiSpeed').textContent=speedLocal;
+  if(speedChar){ try{await speedChar.writeValue(new TextEncoder().encode(speedLocal.toString())); }catch(e){log(e);} }
+});
 </script>
 </body>
 </html>
