@@ -6,243 +6,144 @@
 <title>ESP32 Ampel — BLE Control</title>
 <style>
   :root{
-    --bgA: #0f1724; --bgB: #0b1b2b; --card: #0f2130;
-    --muted: #9aa8b8; --accent: #06b6d4; --glass: rgba(255,255,255,0.04);
+    --bg: #0f1724;
+    --card: #0f2130;
+    --muted: #9aa8b8;
+    --accent: #06b6d4;
     --shadow: 0 8px 30px rgba(2,6,23,0.6);
   }
-  *{box-sizing:border-box}
-  body{margin:0; min-height:100vh; font-family:Inter,sans-serif;color:#e6eef6;
-    background: radial-gradient(circle at 10% 10%, #071022 0%, rgba(9,20,35,1) 25%, rgba(6,14,22,1) 100%);
-    padding:18px;}
-  .wrap{ max-width:980px; margin:0 auto; display:grid; grid-template-columns: 1fr 360px; gap:20px; align-items:start; }
-  header{ grid-column:1/-1; display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:6px;}
-  h1{font-size:20px;margin:0}
-  .sub{color:var(--muted); font-size:13px}
-  .card{ background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:14px; padding:18px; box-shadow:var(--shadow); border:1px solid rgba(255,255,255,0.02); }
-  .btn{ background:linear-gradient(180deg,var(--accent), #028e9b); color:#042023; border:none; padding:10px 14px; border-radius:10px; font-weight:700; cursor:pointer; box-shadow:0 8px 24px rgba(6,182,212,0.12); }
-  .btn.secondary{ background:#253544; color:var(--muted); box-shadow:none; border:1px solid rgba(255,255,255,0.03); }
-  .status-pill{ padding:8px 12px; border-radius:999px; background:var(--glass); display:inline-flex; gap:8px; align-items:center; color:var(--muted); font-weight:600; }
-  .programs{ display:grid; gap:10px; grid-template-columns: repeat(2, minmax(0,1fr)); margin-top:12px;}
-  .prog-btn{ padding:12px; border-radius:10px; border:none; cursor:pointer; font-weight:700; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); color: #dceff6; box-shadow: inset 0 -6px 20px rgba(0,0,0,0.35);}
-  .prog-btn.active{ outline:3px solid rgba(255,255,255,0.04); transform:translateY(-3px); box-shadow:0 10px 30px rgba(0,0,0,0.5);}
-  .prog-btn.blink{ background:linear-gradient(180deg,#7b2b7b,#5b1a5b); }
-  .prog-btn.fade{ background:linear-gradient(180deg,#0b7b7b,#065e5e); }
-  .prog-btn.lauf{ background:linear-gradient(180deg,#f59e0b,#b36e04); color:#091015;}
-  .prog-btn.ping{ background:linear-gradient(180deg,#0a7a2a,#05551b); }
-  .right{ display:flex; flex-direction:column; gap:12px; }
-  .ampel-box{ display:flex; flex-direction:column; align-items:center; padding:18px; border-radius:14px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); box-shadow:var(--shadow); }
-  .ampel{ width:180px; background:#0b1117; padding:16px; border-radius:14px; display:flex; flex-direction:column; align-items:center; }
-  .lamp{ width:86px; height:86px; border-radius:50%; margin:10px 0; box-shadow:inset 0 -12px 30px rgba(0,0,0,0.6); transition: transform 180ms, box-shadow 180ms, filter 180ms, opacity 180ms; display:flex; align-items:center; justify-content:center; cursor:pointer; }
-  .lamp.off{ filter:grayscale(70%) brightness(30%); transform:scale(1); opacity:0.55; box-shadow: inset 0 -10px 20px rgba(0,0,0,0.5); }
-  .lamp.red{ background: radial-gradient(circle at 30% 25%, #ff7b7b, #8b0000); }
-  .lamp.yellow{ background: radial-gradient(circle at 30% 25%, #fff7a8, #b8860b); }
-  .lamp.green{ background: radial-gradient(circle at 30% 25%, #b8ffb8, #0b8b3d); }
-  .slider-row{ display:flex; flex-direction:column; align-items:center; gap:6px; padding:8px 0;}
-  input[type=range]{ width:100%; appearance:none; height:10px; background:linear-gradient(90deg,#0b7b7b,#7b2b7b); border-radius:999px; outline:none; }
-  .small{ font-size:13px;color:var(--muted); }
-  .hint{ font-size:13px; color:var(--muted); margin-top:10px; text-align:center; }
-  @media (max-width:920px){ .wrap{ grid-template-columns: 1fr; } .right{ order: -1; } }
+  body{
+    margin:0;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto;
+    background: var(--bg);
+    color:#e6eef6;
+    padding:16px;
+  }
+  .wrap{ max-width:980px; margin:0 auto; display:grid; grid-template-columns:1fr 360px; gap:20px;}
+  header{ grid-column:1/-1; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
+  .card{ background:var(--card); border-radius:14px; padding:18px; box-shadow:var(--shadow);}
+  .btn{padding:10px 14px; border-radius:10px; font-weight:700; cursor:pointer; border:none;}
+  .btn.primary{ background:#06b6d4; color:#042023;}
+  .btn.secondary{ background:#253544; color:var(--muted);}
+  .programs{ display:grid; gap:10px; grid-template-columns: repeat(2, 1fr); margin-top:12px;}
+  .prog-btn{padding:12px; border-radius:10px; font-weight:700; cursor:pointer; background:rgba(255,255,255,0.02);}
+  .prog-btn.active{outline:3px solid rgba(255,255,255,0.04);}
+  .ampel-box{ display:flex; flex-direction:column; align-items:center; padding:18px; border-radius:14px; background:var(--card);}
+  .ampel{ width:180px; background:#0b1117; padding:16px; border-radius:14px; display:flex; flex-direction:column; align-items:center;}
+  .lamp{ width:86px; height:86px; border-radius:50%; margin:10px 0; display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:0.55;}
+  .lamp.red{ background: radial-gradient(circle,#ff7b7b,#8b0000);}
+  .lamp.yellow{ background: radial-gradient(circle,#fff7a8,#b8860b);}
+  .lamp.green{ background: radial-gradient(circle,#b8ffb8,#0b8b3d);}
+  .lamp.on{ opacity:1; transform: scale(1.1);}
+  input[type=range]{ width:100%; height:10px; border-radius:999px; }
 </style>
 </head>
 <body>
 <div class="wrap">
 <header>
+  <h1>ESP32 Ampel</h1>
   <div>
-    <h1>ESP32 Ampel</h1>
-    <div class="sub">Schöne BLE-Steuerung • Chrome (localhost/HTTPS)</div>
-  </div>
-  <div class="top-actions">
-    <div id="statusPill" class="status-pill">Nicht verbunden</div>
-    <button id="btnConnect" class="btn">Verbinden</button>
+    <button id="btnConnect" class="btn primary">Verbinden</button>
     <button id="btnDisconnect" class="btn secondary" style="display:none">Trennen</button>
   </div>
 </header>
 
 <section class="card">
-  <div style="display:flex;justify-content:space-between;align-items:center">
-    <div><strong>Programme</strong><div class="small">Wähle einen Modus</div></div>
-    <div class="small">Mode: <span id="uiMode">—</span></div>
-  </div>
-
-  <div class="programs" style="margin-top:12px">
-    <button class="prog-btn lauf" data-mode="lauflicht">Lauflicht</button>
-    <button class="prog-btn blink" data-mode="blinken">Blinken</button>
-    <button class="prog-btn fade" data-mode="fading">Fading</button>
-    <button class="prog-btn ping" data-mode="mode3">PingPong</button>
-    <button class="prog-btn" data-mode="mode0">Einzeln Fade</button>
+  <strong>Programme</strong>
+  <div class="programs">
+    <button class="prog-btn" data-mode="lauflicht">Lauflicht</button>
+    <button class="prog-btn" data-mode="blinken">Blinken</button>
+    <button class="prog-btn" data-mode="mode3">PingPong</button>
+    <button class="prog-btn" data-mode="mode0">Fading</button>
     <button class="prog-btn" data-mode="stop">Stop</button>
   </div>
-
-  <div style="margin-top:16px; display:flex; gap:10px; align-items:center">
-    <button id="btnDemo" class="btn secondary">Demo: Simuliere Mode lokal</button>
-    <div class="small" style="margin-left:auto">Speed: <span id="uiSpeed">200</span> ms</div>
+  <div style="margin-top:12px;">
+    <label>Speed: <span id="uiSpeed">200</span> ms</label>
+    <input id="speed" type="range" min="10" max="5000" step="10" value="200">
   </div>
-
-  <div style="margin-top:14px" class="hint">Seite per <strong>localhost</strong> oder HTTPS laden. Für Tests: nRF Connect</div>
 </section>
 
-<aside class="right">
-  <div class="card ampel-box">
-    <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-      <div><strong>Ampel</strong><div class="small">Tippe Lampen zum Toggeln</div></div>
-      <div style="text-align:right">
-        <div class="small">Verbindung:</div>
-        <div id="connDot" style="width:12px;height:12px;border-radius:50%;background:#ff6b6b"></div>
-      </div>
-    </div>
-
-    <div class="ampel" style="margin-top:12px">
-      <div id="led0" class="lamp red off" data-index="0" title="Rot"></div>
-      <div id="led1" class="lamp yellow off" data-index="1" title="Gelb"></div>
-      <div id="led2" class="lamp green off" data-index="2" title="Grün"></div>
-    </div>
-
-    <div class="slider-row" style="width:100%; margin-top:12px">
-      <div class="small">Geschwindigkeit (kleiner = schneller)</div>
-      <input id="speed" type="range" min="50" max="1200" step="10" value="200">
-    </div>
-
-    <div style="display:flex; gap:10px; margin-top:10px">
-      <button id="btnAllOff" class="btn secondary" style="flex:1">Alle aus</button>
-      <button id="btnAllOn" class="btn" style="flex:1">Alle an</button>
-    </div>
+<aside class="ampel-box">
+  <div class="ampel">
+    <div id="led0" class="lamp red" data-index="0"></div>
+    <div id="led1" class="lamp yellow" data-index="1"></div>
+    <div id="led2" class="lamp green" data-index="2"></div>
   </div>
-
-  <div style="margin-top:12px" class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center">
-      <div><strong>Steuerung & Feedback</strong></div>
-      <div class="small" id="logCount"></div>
-    </div>
-    <div id="log" style="margin-top:10px; max-height:160px; overflow:auto; font-size:13px; color:var(--muted)"></div>
+  <div style="display:flex; gap:10px; margin-top:10px;">
+    <button id="btnAllOn" class="btn primary">Alle an</button>
+    <button id="btnAllOff" class="btn secondary">Alle aus</button>
   </div>
+  <div style="margin-top:12px; color:var(--muted);" id="log"></div>
 </aside>
 </div>
 
 <script>
-const SERVICE_UUID = '12345678-1234-5678-1234-56789abcdef0';
-const MODE_UUID    = '12345678-1234-5678-1234-56789abcdef1';
-const SPEED_UUID   = '12345678-1234-5678-1234-56789abcdef2';
-const LED_UUID     = '12345678-1234-5678-1234-56789abcdef3';
-
-const btnConnect = document.getElementById('btnConnect');
-const btnDisconnect = document.getElementById('btnDisconnect');
-const statusPill = document.getElementById('statusPill');
-const connDot = document.getElementById('connDot');
-const uiMode = document.getElementById('uiMode');
-const uiSpeed = document.getElementById('uiSpeed');
-const logEl = document.getElementById('log');
-const logCount = document.getElementById('logCount');
-
-const leds = [ document.getElementById('led0'), document.getElementById('led1'), document.getElementById('led2') ];
-const speedSlider = document.getElementById('speed');
+const SERVICE_UUID='12345678-1234-5678-1234-56789abcdef0';
+const MODE_UUID='12345678-1234-5678-1234-56789abcdef1';
+const SPEED_UUID='12345678-1234-5678-1234-56789abcdef2';
+const LED_UUID='12345678-1234-5678-1234-56789abcdef3';
 
 let device=null, server=null, service=null, modeChar=null, speedChar=null, ledChar=null;
-let modeLocal='', speedLocal=parseInt(speedSlider.value);
 let ledStates=[0,0,0];
-let animTimers={ seq:null, blink:null, fade:null };
-const enc = new TextEncoder();
-const dec = new TextDecoder();
+let modeLocal='', speedLocal=parseInt(document.getElementById('speed').value);
 
-function log(msg){
-  const t=new Date().toLocaleTimeString();
-  const line=document.createElement('div');
-  line.textContent=`[${t}] ${msg}`;
-  logEl.prepend(line);
-  logCount.textContent = logEl.children.length+' msgs';
-  if(logEl.children.length>200) logEl.removeChild(logEl.lastChild);
-}
+const leds=[document.getElementById('led0'), document.getElementById('led1'), document.getElementById('led2')];
 
-function setConnected(on){
-  statusPill.textContent=on?'Verbunden':'Nicht verbunden';
-  statusPill.style.background=on?'rgba(46,204,113,0.08)':'transparent';
-  connDot.style.background=on?'#2ecc71':'#ff6b6b';
-  btnConnect.style.display=on?'none':'';
-  btnDisconnect.style.display=on?'':'none';
-}
+function log(msg){ const e=document.getElementById('log'); e.innerHTML=`${new Date().toLocaleTimeString()} - ${msg}<br>`+e.innerHTML; }
 
 async function connectBLE(){
   try{
-    device=await navigator.bluetooth.requestDevice({filters:[{services:[SERVICE_UUID]}],optionalServices:[SERVICE_UUID]});
-    device.addEventListener('gattserverdisconnected', onDisconnected);
-    server=await device.gatt.connect();
-    service=await server.getPrimaryService(SERVICE_UUID);
-    modeChar=await service.getCharacteristic(MODE_UUID);
-    speedChar=await service.getCharacteristic(SPEED_UUID);
-    ledChar=await service.getCharacteristic(LED_UUID);
-    setConnected(true);
-    log('Verbunden mit '+(device.name||device.id));
-  }catch(err){ log('BLE Connect Fehler: '+err); alert('BLE connect fehlgeschlagen'); }
+    device = await navigator.bluetooth.requestDevice({filters:[{services:[SERVICE_UUID]}], optionalServices:[SERVICE_UUID]});
+    device.addEventListener('gattserverdisconnected', ()=>{ log('Disconnected'); document.getElementById('btnDisconnect').style.display='none'; document.getElementById('btnConnect').style.display='inline-block'; });
+    server = await device.gatt.connect();
+    service = await server.getPrimaryService(SERVICE_UUID);
+    modeChar = await service.getCharacteristic(MODE_UUID);
+    speedChar = await service.getCharacteristic(SPEED_UUID);
+    ledChar = await service.getCharacteristic(LED_UUID);
+    log('Verbunden mit '+device.name);
+    document.getElementById('btnConnect').style.display='none';
+    document.getElementById('btnDisconnect').style.display='inline-block';
+  }catch(e){ log('Fehler: '+e); }
 }
 
-function onDisconnected(){ log('GATT disconnected'); setConnected(false); stopLocalAnimations(); }
-
-function disconnectBLE(){ if(device&&device.gatt.connected) device.gatt.disconnect(); setConnected(false); log('Getrennt'); }
-
-document.querySelectorAll('.prog-btn').forEach(btn=>{
-  btn.addEventListener('click', async ()=>{ sendMode(btn.dataset.mode); });
-});
-
-speedSlider.addEventListener('input', debounce(async (ev)=>{
-  const v=parseInt(ev.target.value);
-  speedLocal=v; uiSpeed.textContent=v;
-  if(speedChar) try{ await speedChar.writeValue(enc.encode(String(v))); log('Speed gesendet: '+v); }catch(e){log('Speed write failed: '+e);}
-},120,false));
-
-leds.forEach((el,idx)=>{
-  el.addEventListener('click', async ()=>{
-    ledStates[idx]=ledStates[idx]?0:1023;
-    updateLedUI();
-    const payload=ledStates.map((v,i)=>`${i}:${v}`).join(';');
-    if(ledChar) try{ await ledChar.writeValue(enc.encode(payload)); log('LED payload sent: '+payload);}catch(e){log('LED write failed: '+e);}
-    setModeLocal('');
-  });
-});
-
-document.getElementById('btnAllOff').addEventListener('click', ()=>{ ledStates=[0,0,0]; updateLedUI(); });
-document.getElementById('btnAllOn').addEventListener('click', ()=>{ ledStates=[1023,1023,1023]; updateLedUI(); });
-
-async function sendMode(mode){ setModeLocal(mode); if(!modeChar) return; try{ await modeChar.writeValue(enc.encode(mode)); log('Mode gesendet: '+mode);}catch(e){log('Mode write failed: '+e);}}
-
-function setModeLocal(mode){
-  modeLocal=mode; uiMode.textContent=mode||'—';
-  document.querySelectorAll('.prog-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
-  startLocalAnimations();
-}
+function disconnectBLE(){ if(device && device.gatt.connected) device.gatt.disconnect(); log('Getrennt'); document.getElementById('btnDisconnect').style.display='none'; document.getElementById('btnConnect').style.display='inline-block'; }
 
 function updateLedUI(){
-  leds.forEach((el,i)=>{
-    if(ledStates[i]>0){ el.classList.remove('off'); const intensity=Math.min(1,ledStates[i]/1023);
-      el.style.transform=`scale(${0.95+0.12*intensity})`;
-      el.style.boxShadow=`0 6px ${12+26*intensity}px rgba(0,0,0,0.4)`; el.style.opacity=1;
-    }else{ el.classList.add('off'); el.style.transform='scale(1)'; el.style.boxShadow='inset 0 -10px 28px rgba(0,0,0,0.6)'; el.style.opacity=0.6; }
+  leds.forEach((el,i)=>{ el.classList.toggle('on',ledStates[i]>0); });
+}
+
+document.querySelectorAll('.prog-btn').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    modeLocal=btn.dataset.mode;
+    // update UI active
+    document.querySelectorAll('.prog-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    if(modeChar){ try{ await modeChar.writeValue(new TextEncoder().encode(modeLocal)); log('Mode '+modeLocal+' gesendet'); }catch(e){ log('Mode send error: '+e); } }
   });
-}
+});
 
-function stopLocalAnimations(){ if(animTimers.seq){ clearInterval(animTimers.seq); animTimers.seq=null; } if(animTimers.blink){ clearInterval(animTimers.blink); animTimers.blink=null; } if(animTimers.fade){ clearInterval(animTimers.fade); animTimers.fade=null; } }
+leds.forEach((el,i)=>{ el.addEventListener('click', async ()=>{
+  ledStates[i]=ledStates[i]?0:1023; updateLedUI();
+  if(ledChar){ try{ await ledChar.writeValue(new TextEncoder().encode(ledStates.map((v,j)=>j+':'+v).join(';'))); log('LED set '+i+':'+ledStates[i]); }catch(e){ log('LED send err: '+e); } }
+}); });
 
-function startLocalAnimations(){
-  stopLocalAnimations(); updateLedUI(); if(!modeLocal||modeLocal==='stop') return;
-  const speed=Math.max(50,speedLocal);
+document.getElementById('btnAllOff').addEventListener('click', async ()=>{
+  ledStates=[0,0,0]; updateLedUI();
+  if(ledChar){ try{ await ledChar.writeValue(new TextEncoder().encode(ledStates.map((v,j)=>j+':'+v).join(';'))); log('Alle aus'); }catch(e){ log('LED send err: '+e); } }
+});
+document.getElementById('btnAllOn').addEventListener('click', async ()=>{
+  ledStates=[1023,1023,1023]; updateLedUI();
+  if(ledChar){ try{ await ledChar.writeValue(new TextEncoder().encode(ledStates.map((v,j)=>j+':'+v).join(';'))); log('Alle an'); }catch(e){ log('LED send err: '+e); } }
+});
 
-  if(modeLocal==='blinken'){
-    animTimers.blink=setInterval(()=>{ const anyOn=ledStates.some(v=>v>0); ledStates=anyOn?[0,0,0]:[1023,1023,1023]; updateLedUI(); },speed);
-  }else if(modeLocal==='lauflicht'){
-    let idx=0; animTimers.seq=setInterval(()=>{ ledStates=ledStates.map((_,i)=>i===idx?1023:0); updateLedUI(); idx=(idx+1)%leds.length; },speed);
-  }else if(modeLocal==='mode0'){
-    let idx=0; animTimers.seq=setInterval(()=>{ ledStates=ledStates.map((_,i)=>i===idx?1023:0); updateLedUI(); idx=(idx+1)%leds.length; }, Math.max(80,Math.round(speed*0.9)));
-  }else if(modeLocal==='mode3'){
-    const order=[0,1,2,1]; let p=0; animTimers.seq=setInterval(()=>{ const idx=order[p%order.length]; ledStates=ledStates.map((_,i)=>i===idx?1023:0); updateLedUI(); p++; },speed);
-  }else if(modeLocal==='fading'){
-    let phase=0; animTimers.fade=setInterval(()=>{ phase=(phase+1)%(leds.length*16); const active=Math.floor(phase/16)%leds.length; const sub=phase%16; ledStates=ledStates.map((_,i)=>i===active?Math.round(sub/15*1023):0); updateLedUI(); },Math.max(30,Math.round(speed/24)));
-  }
-}
+document.getElementById('btnConnect').addEventListener('click', connectBLE);
+document.getElementById('btnDisconnect').addEventListener('click', disconnectBLE);
 
-function debounce(fn,wait=150,immediate=false){ let timeout; return function(...args){ const callNow=immediate&&!timeout; clearTimeout(timeout); timeout=setTimeout(()=>{ timeout=null; if(!immediate) fn.apply(this,args); },wait); if(callNow) fn.apply(this,args); }; }
-
-btnConnect.addEventListener('click', connectBLE);
-btnDisconnect.addEventListener('click', disconnectBLE);
-
-setConnected(false); updateLedUI(); startLocalAnimations();
+document.getElementById('speed').addEventListener('input', async (ev)=>{
+  speedLocal=parseInt(ev.target.value);
+  document.getElementById('uiSpeed').textContent=speedLocal;
+  if(speedChar){ try{ await speedChar.writeValue(new TextEncoder().encode(speedLocal.toString())); log('Speed gesendet: '+speedLocal); }catch(e){ log('Speed send err: '+e); } }
+});
 </script>
 </body>
 </html>
